@@ -1,0 +1,6 @@
+DATABASE:
+  NAME: __project_name__
+  USER: __project_name__
+  PASSWORD: __password__
+  HOST: 127.0.0.1  # local host
+  PORT: '5432'  # local host
