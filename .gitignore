@@ -149,3 +149,7 @@ venv.bak/
 # Manual config
 # Yaml
 config.yaml
+
+# Logs
+/thade/trade_bot/logs/*
+!/thade/trade_bot/logs/.keep
