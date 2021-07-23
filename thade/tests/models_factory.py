@@ -56,7 +56,7 @@ class RecordFactory(factory.django.DjangoModelFactory):
     lowest_vnd = factory.LazyAttribute(lambda this: min(this.close_vnd, this.open_vnd) + this.lowest_fluctuation)
 
 
-def seed(records=5, days_from_now=0, company=None) -> Company:
+def seed(records=5, days_from_now=0, company: Company = None) -> Company:
     """
     Seed database with a fake Company and fake Records.
     Note: Resetting RecordFactory's sequence counter
