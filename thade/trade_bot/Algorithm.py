@@ -6,9 +6,9 @@ class Algorithm:
     SELL = 1
     HOLD = 2
 
-    def __init__(self):
+    def __init__(self, fee=0.0):
         self.data = QuerySet()
-        self.TRADE_FEE = 0.0
+        self.TRADE_FEE = fee
 
     def set_fee(self, fee: float):
         self.TRADE_FEE = fee

@@ -34,6 +34,7 @@ class TradeBot:
         self.stocks = stocks
         self.stocks_per_trade = stocks_per_trade
         self.algorithm = algorithm
+        self.algorithm.set_fee(fee)
 
         self.last_updated_record = Record()
 
