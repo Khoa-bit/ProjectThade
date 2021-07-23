@@ -36,11 +36,3 @@ class MovingAverage(Algorithm):
     def __str__(self):
         return 'MovingAverage'
 
-
-if __name__ == 'django.core.management.commands.shell':
-    company = Company.objects.first()
-    vn_direct_fee = 0.35 / 100
-    moving_avg = MovingAverage()
-    moving_avg.compute()
-    print(moving_avg.moving_50)
-    print(moving_avg.moving_200)
