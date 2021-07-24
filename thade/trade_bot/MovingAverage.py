@@ -17,7 +17,7 @@ class MovingAverage(Algorithm):
         if self.data.count() < 200:
             warnings.warn('Not enough records to compute moving average: {} < 200', self.data.count())
         else:
-            self.data.order_by('-utc_trading_date')
+            self.data = self.data.order_by('-utc_trading_date')
             self.close_50 = [x.close_vnd for x in self.data[:50]]
             self.close_200 = [x.close_vnd for x in self.data[:200]]
 
