@@ -168,3 +168,8 @@ def update_records(company_code: str, clear=False):
     company_instance = fetch_company(company_code)
 
     fetch_records(company_instance)
+
+
+def update_all_active_bot():
+    for bot in Bot.objects.filter(is_active=True):
+        fetch_records(bot.company)
