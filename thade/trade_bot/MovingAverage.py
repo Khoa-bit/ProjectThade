@@ -1,5 +1,7 @@
 import warnings
 
+from django.db.models import QuerySet
+
 from thade.trade_bot.Algorithm import Algorithm
 from thade.models import Company
 from numpy import mean
@@ -8,8 +10,8 @@ from numpy import mean
 class MovingAverage(Algorithm):
     def __init__(self):
         super().__init__()
-        self.close_50 = []
-        self.close_200 = []
+        self.close_50 = QuerySet()
+        self.close_200 = QuerySet()
         self.moving_50 = 0
         self.moving_200 = 0
 
@@ -18,8 +20,9 @@ class MovingAverage(Algorithm):
             raise UserWarning('Not enough records to compute moving average: {} < 200'.format(self.data.count()))
         else:
             self.data = self.data.order_by('-utc_trading_date')
-            self.close_50 = [x.close_vnd for x in self.data[:50]]
-            self.close_200 = [x.close_vnd for x in self.data[:200]]
+            close_records = self.data.values_list('close_vnd', flat=True)
+            self.close_50 = close_records[:50]
+            self.close_200 = close_records[:200]
 
     def compute(self):
         super().compute()

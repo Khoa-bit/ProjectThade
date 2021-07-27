@@ -64,8 +64,8 @@ class MovingAverageTests(TestCase):
 
         moving_average.update_data(self.company.record_set.all())
         self.assertQuerysetEqual(moving_average.data, self.company.record_set.order_by('-utc_trading_date'))
-        self.assertListEqual(moving_average.close_50, self.close_records[:50])
-        self.assertListEqual(moving_average.close_200, self.close_records[:200])
+        self.assertQuerysetEqual(moving_average.close_50, self.close_records[:50])
+        self.assertQuerysetEqual(moving_average.close_200, self.close_records[:200])
 
         moving_average.compute()
         self.assertEqual(moving_average.moving_50, 107772)
