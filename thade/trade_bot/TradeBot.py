@@ -5,7 +5,6 @@ from django.utils import timezone
 from faker import Faker
 
 from projectthade.settings import BASE_DIR
-from thade.backtesting.scrape_stock import fetch_records
 from thade.models import Company, Record, Bot, BotLog
 from thade.trade_bot.Algorithm import Algorithm
 from thade.trade_bot.MovingAverage import MovingAverage

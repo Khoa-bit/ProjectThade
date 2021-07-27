@@ -1,15 +1,13 @@
 import re
-import warnings
 from datetime import datetime
 from time import sleep
 
 import requests
 from bs4 import BeautifulSoup, element
 from django.utils import timezone
-from requests.exceptions import SSLError, ConnectionError
 
 from projectthade.settings import HCM_TZ
-from thade.models import Record, Company
+from thade.models import Record, Company, Bot
 
 
 def make_soup(url: str) -> BeautifulSoup:
@@ -40,7 +38,7 @@ def request_records(company_instance: Company, last_update: datetime = None):
     is_adding = True
 
     while is_adding:
-        print('Current page number: ' + str(page_number))
+        print(f'Current {company_instance.code} page number: {page_number}')
         url = f"https://www.cophieu68.vn/historyprice.php?currentPage={page_number}&id={company_instance.code}"
 
         soup = make_soup(url)
@@ -63,7 +61,7 @@ def request_records(company_instance: Company, last_update: datetime = None):
         page_number += 1
         sleep(1)
 
-    print("{} record(s) added".format(rows_added))
+    print("{} {} record(s) added".format(rows_added, company_instance.code))
 
 
 def parse_and_save_record(stripped_strings, company_instance: Company, last_update: datetime = None) -> bool:

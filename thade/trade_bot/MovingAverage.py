@@ -1,9 +1,6 @@
-import warnings
-
 from django.db.models import QuerySet
 
 from thade.trade_bot.Algorithm import Algorithm
-from thade.models import Company
 from numpy import mean
 
 
