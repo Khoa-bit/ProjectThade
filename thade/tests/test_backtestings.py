@@ -1,6 +1,7 @@
 import warnings
 from datetime import datetime, timedelta
 
+import yaml
 from django.test import TestCase
 
 from bs4 import BeautifulSoup
@@ -8,10 +9,16 @@ from time import sleep
 
 from django.utils import timezone
 
+from projectthade.settings import BASE_DIR
 from thade.backtesting.scrape_stock import (make_soup, fetch_company, fetch_records, clear_records,
                                             request_company_desc, request_records, parse_and_save_record)
 from thade.models import Company, Record
 from thade.tests.models_factory import CompanyFactory, RecordFactory, seed
+
+# Global constant variables
+TEST = yaml.safe_load(open(BASE_DIR / 'config.yaml'))['TEST']
+NAIVE_DATETIME = TEST['NAIVE_DATETIME_ISO']
+AWARE_DATETIME = TEST['AWARE_DATETIME_ISO']
 
 
 # Create your tests here.
@@ -141,12 +148,11 @@ class ScrapeStockTests(TestCase):
         """
         company = CompanyFactory(code='AAA')
 
-        naive_datetime = datetime.now() - timedelta(days=10)
         with warnings.catch_warnings(record=True) as w:
-            last_record = RecordFactory(company=company, utc_trading_date=naive_datetime)
+            last_record = RecordFactory(company=company, utc_trading_date=NAIVE_DATETIME)
             self.assertEqual(w[-1].category, RuntimeWarning)
             self.assertEqual(str(w[-1].message), "DateTimeField Record.utc_trading_date received a naive datetime ({})"
-                                                 " while time zone support is active.".format(naive_datetime))
+                                                 " while time zone support is active.".format(NAIVE_DATETIME))
 
         # This exception will not raise the Exception
         # because Django prevents inserting naive datetime objects through ORM.
@@ -212,8 +218,7 @@ class ScrapeStockTests(TestCase):
         Need Improvement :3
         """
         company = CompanyFactory(code='AAA')
-        last_update = timezone.now() - timezone.timedelta(days=10)
-        request_records(company, last_update)
+        request_records(company, AWARE_DATETIME)
         self.assertNotEqual(
             Record.objects.filter(company__code__exact='AAA').count(),
             0,
@@ -251,8 +256,7 @@ class ScrapeStockTests(TestCase):
         company = CompanyFactory(code='AAA')
         list_stripped_string = ['#1', '16-07-2021', '15.95', '-0.20', '-1.25%', '15.75', '3,757,400', '16.05', '16.05',
                                 '15.70', '0', '14,900', '329,800']
-        last_update = timezone.now() - timezone.timedelta(days=10)
-        parse_and_save_record(list_stripped_string, company, last_update)
+        parse_and_save_record(list_stripped_string, company, AWARE_DATETIME)
 
         self.assertEqual(
             Record.objects.filter(company__code__exact='AAA').count(),

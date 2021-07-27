@@ -126,7 +126,7 @@ def fetch_company(company_code: str) -> Company:
     if is_created:
         request_company_desc(company_instance)
     else:
-        print("Skipped company: {}".format(company_code))
+        print("Found company: {}".format(company_code))
     return company_instance
 
 

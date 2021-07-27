@@ -1,2 +1,9 @@
 - Bot always log despite self.track() is ran or not. Either through txt files or through database
 - Bot's name must be a WORD having less then 34 characters
+- Bot always runs the next record  not on the self.last_update_record. Therefore, At least 2 records is computed every run.
+- One major problem, I have is that fee is a decimal number (0.0035)
+which leads to the balance becoming a decimal number.
+    => Current solution is to set all balance-related* attributes to Decimal under the hood.
+    Bot continues taking int balance then cast to Decimal balance.
+
+* balance-related attributes include balance, control_balance, all_time_min_total_vnd, all_time_max_total_vnd

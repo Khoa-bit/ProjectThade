@@ -8,6 +8,7 @@ class Company(models.Model):
     name = models.CharField(max_length=256)
     website = models.CharField(max_length=256)
     stock_exchange = models.CharField(max_length=8)
+    last_records_fetched = models.DateTimeField()
 
     def __str__(self):
         return f"Company(code={self.code!r}, name={self.name!r})"
@@ -38,7 +39,7 @@ class Bot(models.Model):
     algorithm = models.CharField(max_length=256)
     investment_vnd = models.IntegerField()
 
-    state = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Bot(bid={self.bid!r})"
@@ -49,7 +50,7 @@ class BotLog(models.Model):
     last_updated_record = models.ForeignKey(Record, on_delete=models.PROTECT)
 
     # Driving attributes
-    balance_vnd = models.IntegerField()
+    decimal_balance_vnd = models.DecimalField(max_digits=16, decimal_places=4)
     stocks = models.IntegerField()
 
     class Signal(models.TextChoices):
@@ -58,6 +59,8 @@ class BotLog(models.Model):
         HOLD = 'HOLD', _('Hold')
         NOT_BUY = 'NOT_BUY', _('Cannot afford to Buy')
         NOT_SELL = 'NOT_SELL', _('Not enough stocks to Sell')
+        INVEST = 'INVEST', _('Invest')
+        WITHDRAW = 'WITHDRAW', _('Withdraw')
         ERR = 'ERR', _('Invalid signal')
 
     signal = models.CharField(
@@ -69,10 +72,11 @@ class BotLog(models.Model):
     log_str = models.CharField(max_length=128)
 
     # Statistical attributes
-    all_time_min_total_vnd = models.IntegerField()
-    all_time_max_total_vnd = models.IntegerField()
+    investment_vnd = models.IntegerField()
+    all_time_min_total_vnd = models.DecimalField(max_digits=16, decimal_places=4)
+    all_time_max_total_vnd = models.DecimalField(max_digits=16, decimal_places=4)
 
-    control_balance_vnd = models.IntegerField()
+    control_decimal_balance_vnd = models.DecimalField(max_digits=16, decimal_places=4)
     control_stocks = models.IntegerField()
 
     def __str__(self):

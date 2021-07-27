@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db.models import QuerySet
 
 
@@ -6,11 +8,11 @@ class Algorithm:
     SELL = 1
     HOLD = 2
 
-    def __init__(self, fee=0.0):
+    def __init__(self, fee=Decimal(0)):
         self.data = QuerySet()
         self.TRADE_FEE = fee
 
-    def set_fee(self, fee: float):
+    def set_fee(self, fee: Decimal):
         self.TRADE_FEE = fee
 
     def _extract(self):
@@ -25,4 +27,6 @@ class Algorithm:
 
     def action(self):
         self.compute()
-        pass
+
+    def __str__(self):
+        return 'Algorithm'

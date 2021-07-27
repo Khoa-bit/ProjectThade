@@ -15,7 +15,7 @@ class MovingAverage(Algorithm):
 
     def _extract(self):
         if self.data.count() < 200:
-            warnings.warn('Not enough records to compute moving average: {} < 200', self.data.count())
+            raise UserWarning('Not enough records to compute moving average: {} < 200'.format(self.data.count()))
         else:
             self.data = self.data.order_by('-utc_trading_date')
             self.close_50 = [x.close_vnd for x in self.data[:50]]
@@ -30,7 +30,7 @@ class MovingAverage(Algorithm):
         super().action()
         if self.moving_50 >= self.moving_200:
             return self.BUY
-        else:
+        elif self.moving_50 < self.moving_200:
             return self.SELL
 
     def __str__(self):
