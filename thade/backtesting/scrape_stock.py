@@ -1,15 +1,13 @@
 import re
-import warnings
 from datetime import datetime
 from time import sleep
 
 import requests
 from bs4 import BeautifulSoup, element
 from django.utils import timezone
-from requests.exceptions import SSLError, ConnectionError
 
 from projectthade.settings import HCM_TZ
-from thade.models import Record, Company
+from thade.models import Record, Company, Bot
 
 
 def make_soup(url: str) -> BeautifulSoup:
@@ -40,7 +38,7 @@ def request_records(company_instance: Company, last_update: datetime = None):
     is_adding = True
 
     while is_adding:
-        print('Current page number: ' + str(page_number))
+        print(f'Current {company_instance.code} page number: {page_number}')
         url = f"https://www.cophieu68.vn/historyprice.php?currentPage={page_number}&id={company_instance.code}"
 
         soup = make_soup(url)
@@ -63,7 +61,7 @@ def request_records(company_instance: Company, last_update: datetime = None):
         page_number += 1
         sleep(1)
 
-    print("{} record(s) added".format(rows_added))
+    print("{} {} record(s) added".format(rows_added, company_instance.code))
 
 
 def parse_and_save_record(stripped_strings, company_instance: Company, last_update: datetime = None) -> bool:
@@ -116,6 +114,7 @@ def request_company_desc(company_instance: Company):
     company_instance.name = name
     company_instance.website = website
     company_instance.stock_exchange = stock_exchange
+    company_instance.last_records_fetched = timezone.now()
     company_instance.save()
     print("{} company added".format(company_instance.code))
 
@@ -126,7 +125,7 @@ def fetch_company(company_code: str) -> Company:
     if is_created:
         request_company_desc(company_instance)
     else:
-        print("Skipped company: {}".format(company_code))
+        print("Found company: {}".format(company_code))
     return company_instance
 
 
@@ -147,6 +146,8 @@ def fetch_records(company_instance: Company):
             raise Exception("The latest record is not timezone aware: {}", latest_record)
 
     request_records(company_instance, last_update)
+    company_instance.last_records_fetched = timezone.now()
+    company_instance.save()
 
 
 def clear_records(company_instance: Company):
@@ -165,3 +166,8 @@ def update_records(company_code: str, clear=False):
     company_instance = fetch_company(company_code)
 
     fetch_records(company_instance)
+
+
+def update_all_active_bot():
+    for bot in Bot.objects.filter(is_active=True):
+        fetch_records(bot.company)

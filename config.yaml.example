@@ -4,3 +4,7 @@ DATABASE:
   PASSWORD: __password__
   HOST: 127.0.0.1  # local host
   PORT: '5432'  # local host
+
+TEST:
+  NAIVE_DATETIME_ISO: 2021-01-01T05:30:21
+  AWARE_DATETIME_ISO: 2021-01-01T05:30:21+00:00
