@@ -116,6 +116,7 @@ def request_company_desc(company_instance: Company):
     company_instance.name = name
     company_instance.website = website
     company_instance.stock_exchange = stock_exchange
+    company_instance.last_records_fetched = timezone.now()
     company_instance.save()
     print("{} company added".format(company_instance.code))
 
@@ -147,6 +148,8 @@ def fetch_records(company_instance: Company):
             raise Exception("The latest record is not timezone aware: {}", latest_record)
 
     request_records(company_instance, last_update)
+    company_instance.last_records_fetched = timezone.now()
+    company_instance.save()
 
 
 def clear_records(company_instance: Company):

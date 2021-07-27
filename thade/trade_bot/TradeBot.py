@@ -135,7 +135,9 @@ class TradeBot:
         elif balance_vnd > self.decimal_balance_vnd:
             warnings.warn(f'Not enough balance_vnd to withdraw: {balance_vnd} > {self.decimal_balance_vnd}')
         elif balance_vnd > self.control_decimal_balance_vnd:
-            warnings.warn(f'Not enough control_balance_vnd to withdraw: {balance_vnd} > {self.control_decimal_balance_vnd}')
+            warnings.warn(
+                f'Not enough control_balance_vnd to withdraw: {balance_vnd} > {self.control_decimal_balance_vnd}'
+            )
 
     def run(self):
         if self.is_active:

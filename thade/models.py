@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
@@ -8,7 +9,7 @@ class Company(models.Model):
     name = models.CharField(max_length=256)
     website = models.CharField(max_length=256)
     stock_exchange = models.CharField(max_length=8)
-    last_records_fetched = models.DateTimeField()
+    last_records_fetched = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"Company(code={self.code!r}, name={self.name!r})"
