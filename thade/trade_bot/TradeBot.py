@@ -1,3 +1,4 @@
+import os
 import warnings
 from decimal import Decimal
 
@@ -11,23 +12,35 @@ from thade.trade_bot.MovingAverage import MovingAverage
 
 
 class TradeBot:
-    def __init__(self, balance_vnd: int, company: Company, fee: Decimal, algorithm: Algorithm,
-                 name: str = None, deploy_date=timezone.now(), stocks=0, stocks_per_trade=50):
+    def __init__(self, balance_vnd: Decimal, company: Company, fee: Decimal, algorithm: Algorithm,
+                 name: str = None, stocks=0, stocks_per_trade=50, deploy_date=timezone.now(),
+                 decimal_investment_vnd: Decimal = None, all_time_min_total_vnd: Decimal = None,
+                 all_time_max_total_vnd: Decimal = None, control_decimal_balance_vnd: Decimal = None,
+                 control_stocks: int = None,
+                 last_update_record: Record = None, model: Bot = None
+                 ):
         """
 
-        :param name: Unique name for bot
         :param balance_vnd: The Balance to start with (VND)
         :param company: A Company that is assigned to this bot
         :param fee: Trading fee/tax
         :param algorithm: Children of Algorithm class
-        :param deploy_date: When this bot was deployed
+        :param name: Unique name for bot
         :param stocks: Bought stocks
         :param stocks_per_trade: Amount of stocks to trade on every action (BUY/SELL)
+        :param deploy_date: When this bot was deployed
+        :param decimal_investment_vnd: Total investment has been put into this bot
+        :param all_time_min_total_vnd: The lowest total the bot has reached
+        :param all_time_max_total_vnd: The highest total the bot has reached
+        :param control_decimal_balance_vnd: The Balance to start with to BUY and HOLD only (VND)
+        :param control_stocks: Held stocks
+        :param last_update_record: Record exists in database and belongs to the same company
+        :param model: Bot's model exists in database and has the same bid
         """
 
         # Driving attributes
         self.name = name
-        self.decimal_balance_vnd = Decimal(balance_vnd)
+        self.decimal_balance_vnd = balance_vnd
         self.company = company
         self.fee = fee
         self.deploy_date = deploy_date
@@ -36,8 +49,6 @@ class TradeBot:
         self.algorithm = algorithm
         self.algorithm.set_fee(fee)
 
-        self.last_updated_record = Record()
-
         if self.name is None:
             fake = Faker()
             self.name = fake.first_name()
@@ -45,24 +56,30 @@ class TradeBot:
             raise UserWarning("Bot's name must be a WORD having less then 34 characters: {}".format(self.name))
 
         # Statistical attributes
-        self.investment_vnd = balance_vnd
-        self.all_time_min_total_vnd = Decimal(balance_vnd)
-        self.all_time_max_total_vnd = Decimal(balance_vnd)
+        self.decimal_investment_vnd = decimal_investment_vnd or balance_vnd
+        self.all_time_min_total_vnd = all_time_min_total_vnd or balance_vnd
+        self.all_time_max_total_vnd = all_time_max_total_vnd or balance_vnd
 
-        self.control_decimal_balance_vnd = Decimal(balance_vnd)
-        self.control_stocks = stocks
+        self.control_decimal_balance_vnd = control_decimal_balance_vnd or balance_vnd
+        self.control_stocks = control_stocks or stocks
 
-        # Get last_updated_record
-        self.last_updated_record = self.company.record_set.filter(
-            utc_trading_date__lte=self.deploy_date).order_by('-utc_trading_date').first()
+        if last_update_record is None:
+            # Get last_updated_record which is the nearest to deployed date
+            self.last_updated_record = self.company.record_set.filter(
+                utc_trading_date__lte=self.deploy_date).order_by('-utc_trading_date').first()
 
-        if self.last_updated_record is None:
-            self.last_updated_record = self.company.record_set.order_by('-utc_trading_date').last()
-            warnings.warn(
-                'The deploy date is earlier than when '
-                '{0} first went official on the stock market: {1} < {2}\n=> last_updated_record = {2}'.format(
-                    self.company, self.deploy_date, self.last_updated_record)
-            )
+            if self.last_updated_record is None:
+                self.last_updated_record = self.company.record_set.order_by('-utc_trading_date').last()
+                warnings.warn(
+                    'The deploy date is earlier than when '
+                    '{0} first went official on the stock market: {1} < {2}\n=> last_updated_record = {2}'.format(
+                        self.company, self.deploy_date, self.last_updated_record)
+                )
+        elif last_update_record.id is None or last_update_record.company != self.company:
+            raise UserWarning('last_update_record must exists in database and'
+                              f' belongs the same company as the bot: {last_update_record}')
+        else:
+            self.last_updated_record = last_update_record
 
         # Generate bid for Bot
         self.bid = '{}-{:%Y%m%d-%H%M%S%z}-{}'.format(
@@ -72,19 +89,28 @@ class TradeBot:
         )
 
         # Setup for tracking in database
-        self.is_active = False
-        self.is_tracking = False
-        self.model = Bot(
-            bid=self.bid,
-            name=self.name,
-            company=self.company,
-            fee=self.fee,
-            deploy_date=self.deploy_date,
-            stocks_per_trade=self.stocks_per_trade,
-            algorithm=str(self.algorithm),
-            investment_vnd=self.investment_vnd,
-            is_active=self.is_active,
-        )
+        if model is None:
+            self.is_active = False
+            self.is_tracking = False
+            self.model = Bot(
+                bid=self.bid,
+                name=self.name,
+                company=self.company,
+                fee=self.fee,
+                deploy_date=self.deploy_date,
+                stocks_per_trade=self.stocks_per_trade,
+                algorithm=str(self.algorithm),
+                is_active=self.is_active,
+            )
+        elif model.id is None or model.bid != self.bid:
+            raise UserWarning('Bot model must exists in database and'
+                              f' has the same bid as the bot: {model}')
+        else:
+            self.model = model
+            self.is_active = model.is_active
+            self.is_tracking = True
+
+        self.log(f'{self.name} is deployed', BotLog.Signal.DEPLOY)
 
     def track(self):
         """
@@ -94,14 +120,20 @@ class TradeBot:
         :return:
         """
         self.model.save()
-        self.is_tracking = not self.is_tracking
+        self.is_tracking = True
+        self.write_txt('Moved to database')
+        self.log(f'{self.name} is deployed', BotLog.Signal.DEPLOY)
 
     def delete_all_logs(self):
-        """Deleting permanently its bot instance and all of its logs in database"""
+        """Deleting permanently its bot instance and all of its logs"""
         if self.is_tracking:
             print(self.model.delete())
         else:
             warnings.warn("This bot has not yet been tracked through database")
+            log_txt_path = BASE_DIR / 'thade/trade_bot/logs/{}_{}_{}.txt'.format(self.name, self.company.code,
+                                                                                 self.algorithm)
+            if os.path.exists(log_txt_path):
+                os.remove(log_txt_path)
 
     def toggle(self):
         self.is_active = not self.is_active
@@ -109,14 +141,14 @@ class TradeBot:
             self.model.is_active = self.is_active
             self.model.save()
 
-    def invest(self, balance_vnd: int):
+    def invest(self, balance_vnd: Decimal):
         """
 
         :param balance_vnd: The Balance to invest more into (VND)
         :return:
         """
         self.decimal_balance_vnd += balance_vnd
-        self.investment_vnd += balance_vnd
+        self.decimal_investment_vnd += balance_vnd
         self.control_decimal_balance_vnd += balance_vnd
         self.log(f'Invest {balance_vnd} VND', BotLog.Signal.INVEST)
 
@@ -128,7 +160,7 @@ class TradeBot:
         """
         if balance_vnd <= self.decimal_balance_vnd and balance_vnd <= self.control_decimal_balance_vnd:
             self.decimal_balance_vnd -= balance_vnd
-            self.investment_vnd -= balance_vnd
+            self.decimal_investment_vnd -= balance_vnd
             self.control_decimal_balance_vnd -= balance_vnd
             self.log(f'Withdraw {balance_vnd} VND', BotLog.Signal.WITHDRAW)
         elif balance_vnd > self.decimal_balance_vnd:
@@ -205,18 +237,21 @@ class TradeBot:
                 stocks=self.stocks,
                 signal=result_signal,
                 log_str='{}: {}'.format(timezone.now(), log_str),
-                investment_vnd=self.investment_vnd,
+                decimal_investment_vnd=self.decimal_investment_vnd,
                 all_time_min_total_vnd=self.all_time_min_total_vnd,
                 all_time_max_total_vnd=self.all_time_max_total_vnd,
                 control_decimal_balance_vnd=self.control_decimal_balance_vnd,
                 control_stocks=self.control_stocks,
             )
         else:
-            with open(
-                    BASE_DIR / 'thade/trade_bot/logs/{}_{}_{}.txt'.format(self.name, self.company.code, self.algorithm),
-                    'a'
-            ) as f:
-                f.write('{} - {}: {}\n'.format(timezone.now(), self.last_updated_record.rid, log_str))
+            self.write_txt(log_str)
+
+    def write_txt(self, log_str: str):
+        with open(
+                BASE_DIR / 'thade/trade_bot/logs/{}_{}_{}.txt'.format(self.name, self.company.code, self.algorithm),
+                'a'
+        ) as f:
+            f.write('{} - {}: {}\n'.format(timezone.now(), self.last_updated_record.rid, log_str))
 
     def statistics(self):
         value_in_stocks = self.last_updated_record.close_vnd * self.stocks
@@ -231,11 +266,11 @@ class TradeBot:
     def output_statistics(self) -> str:
         value_in_stocks = self.last_updated_record.close_vnd * self.stocks
         total = self.decimal_balance_vnd + value_in_stocks
-        roi = (total / self.investment_vnd - 1) * 100
+        roi = (total / self.decimal_investment_vnd - 1) * 100
 
         control_value_in_stocks = self.last_updated_record.close_vnd * self.control_stocks
         control_total = self.control_decimal_balance_vnd + control_value_in_stocks
-        control_roi = (control_total / self.investment_vnd - 1) * 100
+        control_roi = (control_total / self.decimal_investment_vnd - 1) * 100
 
         output_str = '\n'
         output_str += '_____BOT: {} - {}_____\n'.format(self.name, self.bid)
@@ -260,9 +295,40 @@ class TradeBot:
         return self.bid
 
 
+def get_trade_bot(bot: Bot):
+    """Get TradeBot object from Bot model"""
+    last_log: BotLog = bot.botlog_set.last()
+
+    if bot.algorithm == 'MovingAverage':
+        bot_algorithm = MovingAverage()
+    elif bot.algorithm == 'Algorithm':
+        bot_algorithm = Algorithm()
+    else:
+        warnings.warn(f'Unknown algorithm (default to Algorithm()): {bot.algorithm}')
+        bot_algorithm = Algorithm()
+
+    return TradeBot(
+        balance_vnd=last_log.decimal_balance_vnd,
+        company=bot.company,
+        fee=bot.fee,
+        algorithm=bot_algorithm,
+        name=bot.name,
+        stocks=last_log.stocks,
+        stocks_per_trade=bot.stocks_per_trade,
+        deploy_date=bot.deploy_date,
+        decimal_investment_vnd=last_log.decimal_investment_vnd,
+        all_time_min_total_vnd=last_log.all_time_min_total_vnd,
+        all_time_max_total_vnd=last_log.all_time_max_total_vnd,
+        control_decimal_balance_vnd=last_log.control_decimal_balance_vnd,
+        control_stocks=last_log.control_stocks,
+        last_update_record=last_log.last_updated_record,
+        model=bot
+    )
+
+
 def debug_bot():
     moving_avg_bot = TradeBot(
-        balance_vnd=200 * 1000000,
+        balance_vnd=Decimal(200 * 1000000),
         company=Company.objects.get(code='VHM'),
         fee=Decimal(0.0035),
         algorithm=MovingAverage(),

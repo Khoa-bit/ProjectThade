@@ -1,5 +1,6 @@
 import warnings
 import os
+from glob import glob
 
 import yaml
 from decimal import Decimal
@@ -7,11 +8,11 @@ from django.test import TestCase
 from django.utils import timezone
 
 from projectthade.settings import BASE_DIR
-from thade.tests.models_factory import seed, CompanyFactory, RecordFactory, BotLogFactory
+from thade.tests.models_factory import seed, CompanyFactory, RecordFactory, BotLogFactory, BotFactory
 from thade.models import Bot, BotLog
 from thade.trade_bot.Algorithm import Algorithm
 from thade.trade_bot.MovingAverage import MovingAverage
-from thade.trade_bot.TradeBot import TradeBot
+from thade.trade_bot.TradeBot import TradeBot, get_trade_bot
 
 # Global constant variables
 TEST = yaml.safe_load(open(BASE_DIR / 'config.yaml'))['TEST']
@@ -120,6 +121,11 @@ class TradeBotTests(TestCase):
                           close_vnd=close_record,
                           utc_trading_date=utc_trading_date)
 
+    @classmethod
+    def tearDownClass(cls):
+        for file in glob(str(BASE_DIR / r"thade/trade_bot/logs/Jester_*.txt")):
+            os.remove(file)
+
     def test_name_longer_than_34_chars(self):
         long_name = 'thisisanamethatislongerthan34characters'
         with self.assertRaisesMessage(
@@ -128,7 +134,7 @@ class TradeBotTests(TestCase):
         ):
             TradeBot(
                 name=long_name,
-                balance_vnd=200 * 1000000,
+                balance_vnd=Decimal(200 * 1000000),
                 company=CompanyFactory(code='VHM'),
                 fee=Decimal(0.0035),
                 algorithm=Algorithm(),
@@ -143,7 +149,7 @@ class TradeBotTests(TestCase):
         ):
             TradeBot(
                 name=space_name,
-                balance_vnd=200 * 1000000,
+                balance_vnd=Decimal(200 * 1000000),
                 company=CompanyFactory(code='VHM'),
                 fee=Decimal(0.0035),
                 algorithm=Algorithm(),
@@ -153,7 +159,7 @@ class TradeBotTests(TestCase):
     def test_generated_bid(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -166,7 +172,7 @@ class TradeBotTests(TestCase):
         with warnings.catch_warnings(record=True) as w:
             TradeBot(
                 name='Jester',
-                balance_vnd=200 * 1000000,
+                balance_vnd=Decimal(200 * 1000000),
                 company=self.company,
                 fee=Decimal(0.0035),
                 algorithm=Algorithm(),
@@ -179,7 +185,7 @@ class TradeBotTests(TestCase):
             before_official_deploy_date = AWARE_DATETIME - timezone.timedelta(days=501)
             bot = TradeBot(
                 name='Jester',
-                balance_vnd=200 * 1000000,
+                balance_vnd=Decimal(200 * 1000000),
                 company=self.company,
                 fee=Decimal(0.0035),
                 algorithm=Algorithm(),
@@ -194,10 +200,109 @@ class TradeBotTests(TestCase):
                                                                                )
                              )
 
+    def test_input_invalid_last_updated_record(self):
+        company = CompanyFactory(code='VHM')
+        last_update_record_not_in_db = RecordFactory.build(company=company)
+        with self.assertRaisesMessage(
+                UserWarning,
+                'last_update_record must exists in database and'
+                f' belongs the same company as the bot: {last_update_record_not_in_db}'
+        ):
+            TradeBot(
+                name='Jester',
+                balance_vnd=Decimal(200 * 1000000),
+                company=company,
+                fee=Decimal(0.0035),
+                algorithm=Algorithm(),
+                deploy_date=AWARE_DATETIME,
+                last_update_record=last_update_record_not_in_db
+            )
+
+        last_update_record_different_company = RecordFactory(company=CompanyFactory(code='AAA'))
+        with self.assertRaisesMessage(
+                UserWarning,
+                'last_update_record must exists in database and'
+                f' belongs the same company as the bot: {last_update_record_different_company}'
+        ):
+            TradeBot(
+                name='Jester',
+                balance_vnd=Decimal(200 * 1000000),
+                company=company,
+                fee=Decimal(0.0035),
+                algorithm=Algorithm(),
+                deploy_date=AWARE_DATETIME,
+                last_update_record=last_update_record_different_company
+            )
+
+    def test_input_valid_last_updated_record(self):
+        company = CompanyFactory(code='VHM')
+        last_update_record = RecordFactory(company=company)
+        bot = TradeBot(
+            name='Jester',
+            balance_vnd=Decimal(200 * 1000000),
+            company=company,
+            fee=Decimal(0.0035),
+            algorithm=Algorithm(),
+            deploy_date=AWARE_DATETIME,
+            last_update_record=last_update_record
+        )
+
+        self.assertEqual(bot.last_updated_record, last_update_record)
+
+    def test_input_invalid_model(self):
+        company = CompanyFactory(code='VHM')
+        model_not_in_db = BotFactory.build(company=company)
+        with self.assertRaisesMessage(
+                UserWarning,
+                'Bot model must exists in database and'
+                f' has the same bid as the bot: {model_not_in_db}'
+        ):
+            TradeBot(
+                name='Jester',
+                balance_vnd=Decimal(200 * 1000000),
+                company=company,
+                fee=Decimal(0.0035),
+                algorithm=Algorithm(),
+                deploy_date=AWARE_DATETIME,
+                model=model_not_in_db
+            )
+
+        model_different_bid = BotFactory(company=CompanyFactory(code='AAA'))
+        with self.assertRaisesMessage(
+                UserWarning,
+                'Bot model must exists in database and'
+                f' has the same bid as the bot: {model_different_bid}'
+        ):
+            TradeBot(
+                name='Jester',
+                balance_vnd=Decimal(200 * 1000000),
+                company=company,
+                fee=Decimal(0.0035),
+                algorithm=Algorithm(),
+                deploy_date=AWARE_DATETIME,
+                model=model_different_bid
+            )
+
+    def test_input_valid_model(self):
+        company = CompanyFactory(code='VHM')
+        RecordFactory.create_batch(10, company=company)
+        model = BotFactory(name='Jester', company=company, deploy_date=AWARE_DATETIME)
+        bot = TradeBot(
+            name='Jester',
+            balance_vnd=Decimal(200 * 1000000),
+            company=company,
+            fee=Decimal(0.0035),
+            algorithm=Algorithm(),
+            deploy_date=AWARE_DATETIME,
+            model=model
+        )
+
+        self.assertEqual(bot.model, model)
+
     def test_track(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -212,7 +317,7 @@ class TradeBotTests(TestCase):
     def test_delete_all_log(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -220,11 +325,11 @@ class TradeBotTests(TestCase):
         )
 
         bot.track()
-        self.assertEqual(BotLog.objects.count(), 0)
+        self.assertEqual(BotLog.objects.count(), 1)
         for i in range(30):
             BotLogFactory(bot=bot.model)
 
-        self.assertEqual(BotLog.objects.count(), 30)
+        self.assertEqual(BotLog.objects.count(), 31)
         self.assertQuerysetEqual(Bot.objects.all(), [bot.model])
         bot.delete_all_logs()
         self.assertQuerysetEqual(Bot.objects.all(), [], "Bot model is removed from database")
@@ -233,7 +338,7 @@ class TradeBotTests(TestCase):
     def test_toggle(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -258,7 +363,7 @@ class TradeBotTests(TestCase):
     def test_invest(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -266,31 +371,31 @@ class TradeBotTests(TestCase):
         )
 
         self.assertEqual(round(bot.decimal_balance_vnd, 1), Decimal(200 * 1000000))
-        self.assertEqual(bot.investment_vnd, 200 * 1000000)
+        self.assertEqual(round(bot.decimal_investment_vnd, 1), Decimal(200 * 1000000))
         self.assertEqual(round(bot.control_decimal_balance_vnd, 1), Decimal(200 * 1000000))
-        bot.invest(1 * 1000000)
+        bot.invest(Decimal(1 * 1000000))
         self.assertEqual(round(bot.decimal_balance_vnd, 1), Decimal(201 * 1000000))
-        self.assertEqual(bot.investment_vnd, 201 * 1000000)
+        self.assertEqual(round(bot.decimal_investment_vnd, 1), Decimal(201 * 1000000))
         self.assertEqual(round(bot.control_decimal_balance_vnd, 1), Decimal(201 * 1000000))
         self.assertTrue(os.path.exists(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt"),
                         'A log file should be created when not tracking through database')
-        os.remove(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt")  # Clean log
 
         bot.track()
-        bot.invest(5 * 1000000)
+        bot.invest(Decimal(5 * 1000000))
         self.assertEqual(round(bot.decimal_balance_vnd, 1), Decimal(206 * 1000000))
-        self.assertEqual(bot.investment_vnd, 206 * 1000000)
+        self.assertEqual(round(bot.decimal_investment_vnd, 1), Decimal(206 * 1000000))
         self.assertEqual(round(bot.control_decimal_balance_vnd, 1), Decimal(206 * 1000000))
-        bl = bot.model.botlog_set.first()
-        self.assertEqual(bl.signal, BotLog.Signal.INVEST)
-        self.assertEqual(round(bl.decimal_balance_vnd, 1), Decimal(206 * 1000000))
-        self.assertEqual(bl.investment_vnd, 206 * 1000000)
-        self.assertEqual(round(bl.control_decimal_balance_vnd, 1), Decimal(206 * 1000000))
+        bl = bot.model.botlog_set.all()
+        self.assertEqual(bl[0].signal, BotLog.Signal.DEPLOY)
+        self.assertEqual(bl[1].signal, BotLog.Signal.INVEST)
+        self.assertEqual(round(bl[1].decimal_balance_vnd, 1), Decimal(206 * 1000000))
+        self.assertEqual(round(bl[1].decimal_investment_vnd, 1), Decimal(206 * 1000000))
+        self.assertEqual(round(bl[1].control_decimal_balance_vnd, 1), Decimal(206 * 1000000))
 
     def test_withdraw(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -298,31 +403,30 @@ class TradeBotTests(TestCase):
         )
 
         self.assertEqual(round(bot.decimal_balance_vnd, 1), Decimal(200 * 1000000))
-        self.assertEqual(bot.investment_vnd, 200 * 1000000)
+        self.assertEqual(round(bot.decimal_investment_vnd, 1), Decimal(200 * 1000000))
         self.assertEqual(round(bot.control_decimal_balance_vnd, 1), Decimal(200 * 1000000))
         bot.withdraw(1 * 1000000)
         self.assertEqual(round(bot.decimal_balance_vnd, 1), Decimal(199 * 1000000))
-        self.assertEqual(bot.investment_vnd, 199 * 1000000)
+        self.assertEqual(round(bot.decimal_investment_vnd, 1), Decimal(199 * 1000000))
         self.assertEqual(round(bot.control_decimal_balance_vnd, 1), Decimal(199 * 1000000))
         self.assertTrue(os.path.exists(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt"),
                         'A log file should be created when not tracking through database')
-        os.remove(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt")  # Clean log
 
         bot.track()
         bot.withdraw(5 * 1000000)
         self.assertEqual(round(bot.decimal_balance_vnd, 1), Decimal(194 * 1000000))
-        self.assertEqual(bot.investment_vnd, 194 * 1000000)
+        self.assertEqual(round(bot.decimal_investment_vnd, 1), Decimal(194 * 1000000))
         self.assertEqual(round(bot.control_decimal_balance_vnd, 1), Decimal(194 * 1000000))
-        bl = bot.model.botlog_set.first()
+        bl = bot.model.botlog_set.all()[1]
         self.assertEqual(bl.signal, BotLog.Signal.WITHDRAW)
         self.assertEqual(round(bl.decimal_balance_vnd, 1), Decimal(194 * 1000000))
-        self.assertEqual(bl.investment_vnd, 194 * 1000000)
+        self.assertEqual(round(bl.decimal_investment_vnd, 1), Decimal(194 * 1000000))
         self.assertEqual(round(bl.control_decimal_balance_vnd, 1), Decimal(194 * 1000000))
 
     def test_action_BUY(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -338,7 +442,7 @@ class TradeBotTests(TestCase):
     def test_action_NOT_BUY(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=0,
+            balance_vnd=Decimal(0),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -354,7 +458,7 @@ class TradeBotTests(TestCase):
     def test_action_SELL(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=0,
+            balance_vnd=Decimal(0),
             stocks=200,
             company=self.company,
             fee=Decimal(0.0035),
@@ -371,7 +475,7 @@ class TradeBotTests(TestCase):
     def test_action_NOT_SELL(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=0,
+            balance_vnd=Decimal(0),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -387,7 +491,7 @@ class TradeBotTests(TestCase):
     def test_action_HOLD(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=0,
+            balance_vnd=Decimal(0),
             stocks=200,
             company=self.company,
             fee=Decimal(0.0035),
@@ -404,7 +508,7 @@ class TradeBotTests(TestCase):
     def test_action_ERR(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -420,7 +524,7 @@ class TradeBotTests(TestCase):
     def test_statistic(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             stocks=200,
             company=self.company,
             fee=Decimal(0.0035),
@@ -434,10 +538,30 @@ class TradeBotTests(TestCase):
         self.assertEqual(round(bot.control_decimal_balance_vnd, 1), Decimal(50618))
         self.assertEqual(bot.control_stocks, 2028)
 
+    def test_write_txt(self):
+        bot = TradeBot(
+            name='Jester',
+            balance_vnd=Decimal(200 * 1000000),
+            company=self.company,
+            fee=Decimal(0.0035),
+            algorithm=Algorithm(),
+            deploy_date=AWARE_DATETIME
+        )
+
+        log_str_deploy = f'{bot.name} is deployed'
+        log_str_test = 'This is a test log string :3'
+        bot.write_txt(log_str_test)
+
+        self.assertTrue(os.path.exists(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt"),
+                        'A log file should be created when not tracking through database')
+        with open(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt", 'r') as f:
+            self.assertIn(log_str_deploy, f.readline())
+            self.assertIn(log_str_test, f.readline())
+
     def test_output_statistics(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             stocks=200,
             company=self.company,
             fee=Decimal(0.0035),
@@ -469,7 +593,7 @@ class TradeBotTests(TestCase):
     def test_log_without_tracking_through_db(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             stocks=200,
             company=self.company,
             fee=Decimal(0.0035),
@@ -477,6 +601,7 @@ class TradeBotTests(TestCase):
             deploy_date=AWARE_DATETIME
         )
 
+        log_str_deploy = f'{bot.name} is deployed'
         log_str_buy, result_signal = bot.action(Algorithm.BUY)
         bot.log(log_str_buy, result_signal)
         log_str_sell, result_signal = bot.action(Algorithm.SELL)
@@ -493,6 +618,7 @@ class TradeBotTests(TestCase):
         self.assertTrue(os.path.exists(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt"),
                         'A log file should be created when not tracking through database')
         with open(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt", 'r') as f:
+            self.assertIn(log_str_deploy, f.readline())
             self.assertIn(log_str_buy, f.readline())
             self.assertIn(log_str_sell, f.readline())
             self.assertIn(log_str_hold, f.readline())
@@ -503,7 +629,7 @@ class TradeBotTests(TestCase):
     def test_log_with_tracking_through_db(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             stocks=200,
             company=self.company,
             fee=Decimal(0.0035),
@@ -512,6 +638,7 @@ class TradeBotTests(TestCase):
         )
 
         bot.track()
+        log_str_deploy = f'{bot.name} is deployed'
         log_str_buy, result_signal = bot.action(Algorithm.BUY)
         bot.log(log_str_buy, result_signal)
         log_str_sell, result_signal = bot.action(Algorithm.SELL)
@@ -525,19 +652,27 @@ class TradeBotTests(TestCase):
             result_signal = BotLog.Signal.ERR
         bot.log(log_str_err, result_signal)
 
-        self.assertEqual(bot.model.botlog_set.all()[0].signal, BotLog.Signal.BUY)
-        self.assertIn(log_str_buy, bot.model.botlog_set.all()[0].log_str)
-        self.assertEqual(bot.model.botlog_set.all()[1].signal, BotLog.Signal.SELL)
-        self.assertIn(log_str_sell, bot.model.botlog_set.all()[1].log_str)
-        self.assertEqual(bot.model.botlog_set.all()[2].signal, BotLog.Signal.HOLD)
-        self.assertIn(log_str_hold, bot.model.botlog_set.all()[2].log_str)
-        self.assertEqual(bot.model.botlog_set.all()[3].signal, BotLog.Signal.ERR)
-        self.assertIn(log_str_err, bot.model.botlog_set.all()[3].log_str)
+        self.assertTrue(os.path.exists(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt"),
+                        'A log file should be created when not tracking through database')
+        with open(BASE_DIR / f"thade/trade_bot/logs/Jester_{self.company.code}_Algorithm.txt", 'r') as f:
+            self.assertIn(log_str_deploy, f.readline())
+            self.assertIn('Moved to database', f.readline())
+
+        self.assertEqual(bot.model.botlog_set.all()[0].signal, BotLog.Signal.DEPLOY)
+        self.assertIn(log_str_deploy, bot.model.botlog_set.all()[0].log_str)
+        self.assertEqual(bot.model.botlog_set.all()[1].signal, BotLog.Signal.BUY)
+        self.assertIn(log_str_buy, bot.model.botlog_set.all()[1].log_str)
+        self.assertEqual(bot.model.botlog_set.all()[2].signal, BotLog.Signal.SELL)
+        self.assertIn(log_str_sell, bot.model.botlog_set.all()[2].log_str)
+        self.assertEqual(bot.model.botlog_set.all()[3].signal, BotLog.Signal.HOLD)
+        self.assertIn(log_str_hold, bot.model.botlog_set.all()[3].log_str)
+        self.assertEqual(bot.model.botlog_set.all()[4].signal, BotLog.Signal.ERR)
+        self.assertIn(log_str_err, bot.model.botlog_set.all()[4].log_str)
 
     def test_run_when_bot_inactive(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -553,7 +688,7 @@ class TradeBotTests(TestCase):
     def test_run_when_bot_active(self):
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             company=self.company,
             fee=Decimal(0.0035),
             algorithm=Algorithm(),
@@ -565,8 +700,8 @@ class TradeBotTests(TestCase):
 
         bot.run()
         bot_log = BotLog.objects.order_by('-last_updated_record__utc_trading_date')
-        self.assertEqual(bot_log.count(), 30)
-        for i in range(30):
+        self.assertEqual(bot_log.count(), 31)
+        for i in range(31):
             temp_log = bot_log[i]
             self.assertEqual(temp_log.last_updated_record.utc_trading_date,
                              AWARE_DATETIME.replace(
@@ -577,7 +712,7 @@ class TradeBotTests(TestCase):
 
         bot = TradeBot(
             name='Jester',
-            balance_vnd=200 * 1000000,
+            balance_vnd=Decimal(200 * 1000000),
             stocks=500,
             company=self.company,
             fee=Decimal(0.0035),
@@ -590,14 +725,41 @@ class TradeBotTests(TestCase):
 
         bot.run()
         bot_log = BotLog.objects.order_by('-last_updated_record__utc_trading_date')
-        self.assertEqual(bot_log.count(), 499)
+        self.assertEqual(bot_log.count(), 500)
 
         test_bot_log_signals = BotLog.objects.order_by(
             '-last_updated_record__utc_trading_date').values_list('signal', flat=True)
         test_stocks = BotLog.objects.order_by(
-            '-last_updated_record__utc_trading_date')[:301].values_list('stocks', flat=True)
+            '-last_updated_record__utc_trading_date')[:302].values_list('stocks', flat=True)
         test_decimal_balance_vnd = BotLog.objects.order_by(
-            '-last_updated_record__utc_trading_date')[:301].values_list('decimal_balance_vnd', flat=True)
+            '-last_updated_record__utc_trading_date')[:302].values_list('decimal_balance_vnd', flat=True)
         self.assertQuerysetEqual(test_bot_log_signals, bot_log_signals)
         self.assertQuerysetEqual(test_stocks, stocks)
         self.assertQuerysetEqual(test_decimal_balance_vnd, balance_vnd)
+
+    def test_get_trade_bot(self):
+        bot = BotFactory(company=self.company)
+        for i in range(20):
+            BotLogFactory(bot=bot, last_updated_record=bot.company.record_set.all()[i])
+
+        last_log: BotLog = bot.botlog_set.last()
+
+        trade_bot = get_trade_bot(bot)
+
+        self.assertEqual(trade_bot.bid, bot.bid)
+        self.assertEqual(trade_bot.name, bot.name)
+        self.assertEqual(trade_bot.decimal_balance_vnd, last_log.decimal_balance_vnd)
+        self.assertEqual(trade_bot.company, bot.company)
+        self.assertEqual(trade_bot.fee, bot.fee)
+        self.assertEqual(trade_bot.deploy_date, bot.deploy_date)
+        self.assertEqual(trade_bot.stocks, last_log.stocks)
+        self.assertEqual(trade_bot.stocks_per_trade, bot.stocks_per_trade)
+        self.assertEqual(trade_bot.decimal_investment_vnd, last_log.decimal_investment_vnd)
+        self.assertEqual(trade_bot.all_time_min_total_vnd, last_log.all_time_min_total_vnd)
+        self.assertEqual(trade_bot.all_time_max_total_vnd, last_log.all_time_max_total_vnd)
+        self.assertEqual(trade_bot.control_decimal_balance_vnd, last_log.control_decimal_balance_vnd)
+        self.assertEqual(trade_bot.control_stocks, last_log.control_stocks)
+        self.assertEqual(trade_bot.last_updated_record, last_log.last_updated_record)
+        self.assertEqual(trade_bot.is_active, bot.is_active)
+        self.assertTrue(trade_bot.is_tracking)
+        self.assertEqual(trade_bot.model, bot)

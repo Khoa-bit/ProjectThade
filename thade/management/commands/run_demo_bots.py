@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.management.base import BaseCommand
 
 from thade.trade_bot.sandbox import run_demo_bots
@@ -21,6 +23,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         run_demo_bots(
-            balance_vnd=options['balance_vnd'] or 20 * 1000000,
+            balance_vnd=options['balance_vnd'] or Decimal(20 * 1000000),
             days=options['days'] or 365
         )

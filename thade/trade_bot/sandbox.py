@@ -4,9 +4,9 @@ from time import sleep
 from django.utils import timezone
 
 from thade.backtesting.scrape_stock import update_records
-from thade.models import Company
+from thade.models import Company, Bot
 from thade.trade_bot.MovingAverage import MovingAverage
-from thade.trade_bot.TradeBot import TradeBot
+from thade.trade_bot.TradeBot import TradeBot, get_trade_bot
 
 from multiprocessing import Process
 from threading import Thread
@@ -20,22 +20,22 @@ def update_bot_records(code: str):
     update_records(code)
 
 
-def run_demo_bots(balance_vnd=20 * 1000000, days=365):
+def run_demo_bots(balance_vnd=Decimal(20 * 1000000), days=365):
     codes = ['MWG', 'MSN', 'VJC', 'VHM', 'NVL', 'VIC', 'VCB', 'FPT']
     bots = []
 
-    # processes_update = []
-    #
-    # # instantiating process with arguments
-    # for code in codes:
-    #     p = Process(target=update_bot_records, kwargs={'code': code})
-    #     processes_update.append(p)
-    #     sleep(0.5)
-    #     p.start()
-    #
-    # # complete the processes
-    # for p in processes_update:
-    #     p.join()
+    processes_update = []
+
+    # instantiating process with arguments
+    for code in codes:
+        p = Process(target=update_bot_records, kwargs={'code': code})
+        processes_update.append(p)
+        sleep(1)
+        p.start()
+
+    # complete the processes
+    for p in processes_update:
+        p.join()
 
     for code in codes:
         bot = TradeBot(
@@ -56,7 +56,25 @@ def run_demo_bots(balance_vnd=20 * 1000000, days=365):
     for bot in bots:
         t = Thread(target=run_bot, kwargs={'bot': bot})
         threads_run.append(t)
-        sleep(1)
+        t.start()
+
+    # complete the processes
+    for t in threads_run:
+        t.join()
+
+    for bot in bots:
+        print(bot.output_statistics())
+
+
+def run_active_demo_bots():
+    bots = []
+
+    threads_run = []
+    for bot_model in Bot.objects.filter(is_active=True):
+        bot = get_trade_bot(bot_model)
+        bots.append(bot)
+        t = Thread(target=run_bot, kwargs={'bot': bot})
+        threads_run.append(t)
         t.start()
 
     # complete the processes
@@ -69,7 +87,7 @@ def run_demo_bots(balance_vnd=20 * 1000000, days=365):
 
 def run_a_demo_bot():
     bot = TradeBot(
-        balance_vnd=20 * 1000000,
+        balance_vnd=Decimal(20 * 1000000),
         company=Company.objects.get(code='MWG'),
         fee=Decimal(0.0035),
         algorithm=MovingAverage(),
@@ -81,7 +99,8 @@ def run_a_demo_bot():
     bot.output_statistics()
 
 
-print('\n===============START===============\n')
-# run_a_demo_bot()
-run_demo_bots()
-print('\n================END================\n')
+if __name__ == 'django.core.management.commands.shell':
+    print('\n===============START===============\n')
+    # run_a_demo_bot()
+    # run_demo_bots()
+    print('\n================END================\n')

@@ -34,11 +34,10 @@ class Bot(models.Model):
     bid = models.CharField(max_length=64, unique=True)  # ID format: CODE-YYYYmmdd-HHMMSS+zzzz-NAME
     name = models.CharField(max_length=256)
     company = models.ForeignKey(Company, on_delete=models.PROTECT)
-    fee = models.FloatField()
+    fee = models.DecimalField(max_digits=12, decimal_places=6)
     deploy_date = models.DateTimeField()
     stocks_per_trade = models.IntegerField()
     algorithm = models.CharField(max_length=256)
-    investment_vnd = models.IntegerField()
 
     is_active = models.BooleanField(default=False)
 
@@ -63,6 +62,7 @@ class BotLog(models.Model):
         INVEST = 'INVEST', _('Invest')
         WITHDRAW = 'WITHDRAW', _('Withdraw')
         ERR = 'ERR', _('Invalid signal')
+        DEPLOY = 'DEPLOY', _('Deployed')
 
     signal = models.CharField(
         max_length=16,
@@ -73,7 +73,7 @@ class BotLog(models.Model):
     log_str = models.CharField(max_length=128)
 
     # Statistical attributes
-    investment_vnd = models.IntegerField()
+    decimal_investment_vnd = models.DecimalField(max_digits=16, decimal_places=4)
     all_time_min_total_vnd = models.DecimalField(max_digits=16, decimal_places=4)
     all_time_max_total_vnd = models.DecimalField(max_digits=16, decimal_places=4)
 

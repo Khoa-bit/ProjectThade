@@ -94,7 +94,7 @@ class BotFactory(factory.django.DjangoModelFactory):
         model = Bot
 
     bid = factory.LazyAttribute(
-        lambda this: '{}-{:%Y%m%d-%H%M%S%z}-{}'.format(this.company.code, this.deploy_date, this.name)
+        lambda this: '{}-{:%Y%m%d-%H%M%S%z}-{}'.format(this.company.code, this.deploy_date, this.name.upper())
     )
     name = factory.Faker('first_name')
     company = factory.Iterator(Company.objects.all())
@@ -102,8 +102,7 @@ class BotFactory(factory.django.DjangoModelFactory):
     deploy_date = timezone.now()
     stocks_per_trade = factory.Faker('random_int', min=10, max=100, step=10)
     algorithm = 'MovingAverage'
-    investment_vnd = factory.Faker('random_int', min=1000000, max=50000000, step=1000000)
-    state = False
+    is_active = False
 
 
 class BotLogFactory(factory.django.DjangoModelFactory):
@@ -119,7 +118,7 @@ class BotLogFactory(factory.django.DjangoModelFactory):
         lambda this: '{} - {}: {} __ {}\n'.format(timezone.now(), this.last_updated_record.rid,
                                                   this.signal, this.bot.company.code)
     )
-    investment_vnd = factory.Faker('random_int', min=0, max=50000000, step=1000)
+    decimal_investment_vnd = factory.Faker('random_int', min=0, max=50000000, step=1000)
     all_time_min_total_vnd = factory.Faker('pydecimal', min_value=0, max_value=50000000, right_digits=3)
     all_time_max_total_vnd = factory.Faker('pydecimal', min_value=0, max_value=50000000, right_digits=3)
     control_decimal_balance_vnd = factory.Faker('pydecimal', min_value=0, max_value=50000000, right_digits=3)
