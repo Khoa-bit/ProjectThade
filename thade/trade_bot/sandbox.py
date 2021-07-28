@@ -3,7 +3,7 @@ from time import sleep
 
 from django.utils import timezone
 
-from thade.backtesting.scrape_stock import update_records
+from thade.backtesting.scrape_stock import update_records, fetch_records
 from thade.models import Company, Bot
 from thade.trade_bot.MovingAverage import MovingAverage
 from thade.trade_bot.TradeBot import TradeBot, get_trade_bot
@@ -26,7 +26,7 @@ def run_demo_bots(balance_vnd=Decimal(20 * 1000000), days=365):
 
     processes_update = []
 
-    # instantiating process with arguments
+    # Fetch, update records
     for code in codes:
         p = Process(target=update_bot_records, kwargs={'code': code})
         processes_update.append(p)
@@ -37,6 +37,7 @@ def run_demo_bots(balance_vnd=Decimal(20 * 1000000), days=365):
     for p in processes_update:
         p.join()
 
+    # Instantiate TradeBots
     for code in codes:
         bot = TradeBot(
             balance_vnd=balance_vnd,
@@ -52,7 +53,7 @@ def run_demo_bots(balance_vnd=Decimal(20 * 1000000), days=365):
     print('+====================================+')
     threads_run = []
 
-    # instantiating process with arguments
+    # Run TradeBots
     for bot in bots:
         t = Thread(target=run_bot, kwargs={'bot': bot})
         threads_run.append(t)
@@ -66,18 +67,32 @@ def run_demo_bots(balance_vnd=Decimal(20 * 1000000), days=365):
         print(bot.output_statistics())
 
 
-def run_active_demo_bots():
+def run_active_demo_bots(update=False):
     bots = []
+    active_bots_queryset = Bot.objects.filter(is_active=True)
+
+    # Update active TradeBots' company records
+    if update:
+        processes_update = []
+        for bot_model in active_bots_queryset:
+            p = Process(target=fetch_records, kwargs={'company_instance': bot_model.company})
+            processes_update.append(p)
+            p.start()
+            sleep(1)
+
+        # complete the processes
+        for p in processes_update:
+            p.join()
 
     threads_run = []
-    for bot_model in Bot.objects.filter(is_active=True):
+    for bot_model in active_bots_queryset:
         bot = get_trade_bot(bot_model)
         bots.append(bot)
         t = Thread(target=run_bot, kwargs={'bot': bot})
         threads_run.append(t)
         t.start()
 
-    # complete the processes
+    # complete the threads
     for t in threads_run:
         t.join()
 
