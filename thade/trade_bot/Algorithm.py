@@ -29,4 +29,4 @@ class Algorithm:
         self.compute()
 
     def __str__(self):
-        return 'Algorithm'
+        return "Algorithm"

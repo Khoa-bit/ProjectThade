@@ -21,14 +21,14 @@ def update_bot_records(code: str):
 
 
 def run_demo_bots(balance_vnd=Decimal(20 * 1000000), days=365):
-    codes = ['MWG', 'MSN', 'VJC', 'VHM', 'NVL', 'VIC', 'VCB', 'FPT']
+    codes = ["MWG", "MSN", "VJC", "VHM", "NVL", "VIC", "VCB", "FPT"]
     bots = []
 
     processes_update = []
 
     # Fetch, update records
     for code in codes:
-        p = Process(target=update_bot_records, kwargs={'code': code})
+        p = Process(target=update_bot_records, kwargs={"code": code})
         processes_update.append(p)
         sleep(1)
         p.start()
@@ -44,18 +44,18 @@ def run_demo_bots(balance_vnd=Decimal(20 * 1000000), days=365):
             company=Company.objects.get(code=code),
             fee=Decimal(0.0035),
             algorithm=MovingAverage(),
-            deploy_date=timezone.now() - timezone.timedelta(days=days)
+            deploy_date=timezone.now() - timezone.timedelta(days=days),
         )
         bot.track()
         bot.toggle()
         bots.append(bot)
 
-    print('+====================================+')
+    print("+====================================+")
     threads_run = []
 
     # Run TradeBots
     for bot in bots:
-        t = Thread(target=run_bot, kwargs={'bot': bot})
+        t = Thread(target=run_bot, kwargs={"bot": bot})
         threads_run.append(t)
         t.start()
 
@@ -75,7 +75,9 @@ def run_active_demo_bots(update=False):
     if update:
         processes_update = []
         for bot_model in active_bots_queryset:
-            p = Process(target=fetch_records, kwargs={'company_instance': bot_model.company})
+            p = Process(
+                target=fetch_records, kwargs={"company_instance": bot_model.company}
+            )
             processes_update.append(p)
             p.start()
             sleep(1)
@@ -88,7 +90,7 @@ def run_active_demo_bots(update=False):
     for bot_model in active_bots_queryset:
         bot = get_trade_bot(bot_model)
         bots.append(bot)
-        t = Thread(target=run_bot, kwargs={'bot': bot})
+        t = Thread(target=run_bot, kwargs={"bot": bot})
         threads_run.append(t)
         t.start()
 
@@ -103,10 +105,10 @@ def run_active_demo_bots(update=False):
 def run_a_demo_bot():
     bot = TradeBot(
         balance_vnd=Decimal(20 * 1000000),
-        company=Company.objects.get(code='MWG'),
+        company=Company.objects.get(code="MWG"),
         fee=Decimal(0.0035),
         algorithm=MovingAverage(),
-        deploy_date=timezone.now() - timezone.timedelta(days=365)
+        deploy_date=timezone.now() - timezone.timedelta(days=365),
     )
     bot.track()
     bot.toggle()
@@ -114,8 +116,8 @@ def run_a_demo_bot():
     bot.output_statistics()
 
 
-if __name__ == 'django.core.management.commands.shell':
-    print('\n===============START===============\n')
+if __name__ == "django.core.management.commands.shell":
+    print("\n===============START===============\n")
     # run_a_demo_bot()
     # run_demo_bots()
-    print('\n================END================\n')
+    print("\n================END================\n")

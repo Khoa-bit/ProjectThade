@@ -7,11 +7,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--update',
+            "--update",
             type=bool,
             default=False,
             help="Update active TradeBots' company records",
         )
 
     def handle(self, *args, **options):
-        run_active_demo_bots(options['update'])
+        run_active_demo_bots(options["update"])

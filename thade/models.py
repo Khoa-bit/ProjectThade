@@ -31,7 +31,9 @@ class Record(models.Model):
 
 
 class Bot(models.Model):
-    bid = models.CharField(max_length=64, unique=True)  # ID format: CODE-YYYYmmdd-HHMMSS+zzzz-NAME
+    bid = models.CharField(
+        max_length=64, unique=True
+    )  # ID format: CODE-YYYYmmdd-HHMMSS+zzzz-NAME
     name = models.CharField(max_length=256)
     company = models.ForeignKey(Company, on_delete=models.PROTECT)
     fee = models.DecimalField(max_digits=12, decimal_places=6)
@@ -54,21 +56,17 @@ class BotLog(models.Model):
     stocks = models.IntegerField()
 
     class Signal(models.TextChoices):
-        BUY = 'BUY', _('Buy')
-        SELL = 'SELL', _('Sell')
-        HOLD = 'HOLD', _('Hold')
-        NOT_BUY = 'NOT_BUY', _('Cannot afford to Buy')
-        NOT_SELL = 'NOT_SELL', _('Not enough stocks to Sell')
-        INVEST = 'INVEST', _('Invest')
-        WITHDRAW = 'WITHDRAW', _('Withdraw')
-        ERR = 'ERR', _('Invalid signal')
-        DEPLOY = 'DEPLOY', _('Deployed')
+        BUY = "BUY", _("Buy")
+        SELL = "SELL", _("Sell")
+        HOLD = "HOLD", _("Hold")
+        NOT_BUY = "NOT_BUY", _("Cannot afford to Buy")
+        NOT_SELL = "NOT_SELL", _("Not enough stocks to Sell")
+        INVEST = "INVEST", _("Invest")
+        WITHDRAW = "WITHDRAW", _("Withdraw")
+        ERR = "ERR", _("Invalid signal")
+        DEPLOY = "DEPLOY", _("Deployed")
 
-    signal = models.CharField(
-        max_length=16,
-        choices=Signal.choices,
-        default=Signal.ERR
-    )
+    signal = models.CharField(max_length=16, choices=Signal.choices, default=Signal.ERR)
 
     log_str = models.CharField(max_length=128)
 

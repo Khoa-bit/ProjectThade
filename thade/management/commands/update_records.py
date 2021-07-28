@@ -7,10 +7,8 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            '--company_code',
-            type=str,
-            help="The company's code to update its records"
+            "--company_code", type=str, help="The company's code to update its records"
         )
 
     def handle(self, *args, **options):
-        update_records(options['company_code'])
+        update_records(options["company_code"])
