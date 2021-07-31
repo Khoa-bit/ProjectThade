@@ -1,8 +1,8 @@
 from django.test import TestCase
 from django.utils import timezone
 
-from thade.tests.models_factory import CompanyFactory, RecordFactory, seed
 from thade.models import Company, Record
+from thade.tests.models_factory import CompanyFactory, RecordFactory, seed
 
 
 class ModelsFactoryTest(TestCase):

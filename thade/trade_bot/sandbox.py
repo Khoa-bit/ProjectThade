@@ -1,15 +1,14 @@
 from decimal import Decimal
+from multiprocessing import Process
+from threading import Thread
 from time import sleep
 
 from django.utils import timezone
 
-from thade.backtesting.scrape_stock import update_records, fetch_records
-from thade.models import Company, Bot
+from thade.backtesting.scrape_stock import fetch_records, update_records
+from thade.models import Bot, Company
 from thade.trade_bot.MovingAverage import MovingAverage
 from thade.trade_bot.TradeBot import TradeBot, get_trade_bot
-
-from multiprocessing import Process
-from threading import Thread
 
 
 def run_bot(bot: TradeBot):
@@ -59,7 +58,6 @@ def run_demo_bots(balance_vnd=Decimal(20 * 1000000), days=365):
         threads_run.append(t)
         t.start()
 
-    # complete the processes
     for t in threads_run:
         t.join()
 
@@ -82,7 +80,6 @@ def run_active_demo_bots(update=False):
             p.start()
             sleep(1)
 
-        # complete the processes
         for p in processes_update:
             p.join()
 
@@ -94,7 +91,6 @@ def run_active_demo_bots(update=False):
         threads_run.append(t)
         t.start()
 
-    # complete the threads
     for t in threads_run:
         t.join()
 
@@ -114,10 +110,3 @@ def run_a_demo_bot():
     bot.toggle()
     run_bot(bot)
     bot.output_statistics()
-
-
-if __name__ == "django.core.management.commands.shell":
-    print("\n===============START===============\n")
-    # run_a_demo_bot()
-    # run_demo_bots()
-    print("\n================END================\n")

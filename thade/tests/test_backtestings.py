@@ -1,23 +1,21 @@
 import warnings
 from datetime import datetime, timedelta
-
-import yaml
-from django.test import TestCase
-
-from bs4 import BeautifulSoup
 from time import sleep
 
+import yaml
+from bs4 import BeautifulSoup
+from django.test import TestCase
 from django.utils import timezone
 
 from projectthade.settings import BASE_DIR
 from thade.backtesting.scrape_stock import (
-    make_soup,
+    clear_records,
     fetch_company,
     fetch_records,
-    clear_records,
+    make_soup,
+    parse_and_save_record,
     request_company_desc,
     request_records,
-    parse_and_save_record,
 )
 from thade.models import Company, Record
 from thade.tests.models_factory import CompanyFactory, RecordFactory, seed

@@ -1,21 +1,21 @@
-import warnings
 import os
+import warnings
+from decimal import Decimal
 from glob import glob
 
 import yaml
-from decimal import Decimal
 from django.test import TestCase
 from django.utils import timezone
 
 from projectthade.settings import BASE_DIR
+from thade.models import Bot, BotLog
 from thade.tests.models_factory import (
-    seed,
+    BotFactory,
+    BotLogFactory,
     CompanyFactory,
     RecordFactory,
-    BotLogFactory,
-    BotFactory,
+    seed,
 )
-from thade.models import Bot, BotLog
 from thade.trade_bot.Algorithm import Algorithm
 from thade.trade_bot.MovingAverage import MovingAverage
 from thade.trade_bot.TradeBot import TradeBot, get_trade_bot
@@ -813,7 +813,7 @@ class TradeBotTests(TestCase):
             )
 
     def test_run_moving_average(self):
-        from thade.tests.records_fixture import bot_log_signals, stocks, balance_vnd
+        from thade.tests.records_fixture import balance_vnd, bot_log_signals, stocks
 
         bot = TradeBot(
             name="Jester",

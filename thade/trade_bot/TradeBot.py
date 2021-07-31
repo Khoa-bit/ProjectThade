@@ -6,7 +6,7 @@ from django.utils import timezone
 from faker import Faker
 
 from projectthade.settings import BASE_DIR
-from thade.models import Company, Record, Bot, BotLog
+from thade.models import Bot, BotLog, Company, Record
 from thade.trade_bot.Algorithm import Algorithm
 from thade.trade_bot.MovingAverage import MovingAverage
 
@@ -398,20 +398,3 @@ def get_trade_bot(bot: Bot):
         last_update_record=last_log.last_updated_record,
         model=bot,
     )
-
-
-def debug_bot():
-    moving_avg_bot = TradeBot(
-        balance_vnd=Decimal(200 * 1000000),
-        company=Company.objects.get(code="VHM"),
-        fee=Decimal(0.0035),
-        algorithm=MovingAverage(),
-        deploy_date=timezone.now() - timezone.timedelta(days=365 * 4),
-    )
-
-    # moving_avg_bot.track()
-
-    moving_avg_bot.toggle()
-    moving_avg_bot.run()
-    print(moving_avg_bot.output_statistics())
-    # moving_avg_bot.delete_all_logs()

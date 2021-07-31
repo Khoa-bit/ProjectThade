@@ -1,7 +1,7 @@
 from django.db.models import QuerySet
+from numpy import mean
 
 from thade.trade_bot.Algorithm import Algorithm
-from numpy import mean
 
 
 class MovingAverage(Algorithm):

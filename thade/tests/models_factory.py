@@ -1,11 +1,11 @@
-import django.db.utils
-import factory
 import string
 
+import django.db.utils
+import factory
 from django.utils import timezone
 from factory import fuzzy
 
-from thade.models import Company, Record, Bot, BotLog
+from thade.models import Bot, BotLog, Company, Record
 
 
 class CompanyFactory(factory.django.DjangoModelFactory):

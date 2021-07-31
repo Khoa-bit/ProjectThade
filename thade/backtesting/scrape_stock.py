@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup, element
 from django.utils import timezone
 
 from projectthade.settings import HCM_TZ
-from thade.models import Record, Company, Bot
+from thade.models import Bot, Company, Record
 
 
 def make_soup(url: str) -> BeautifulSoup:
